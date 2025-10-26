@@ -17,7 +17,7 @@ export const BaseNode = forwardRef<
       // is selected, using Tailwind's `&` selector.
       "[.react-flow\\_\\_node.selected_&]:border-muted-foreground",
       "[.react-flow\\_\\_node.selected_&]:shadow-lg",
-      className,
+      className
     )}
     tabIndex={0}
     {...props}
@@ -40,7 +40,7 @@ export const BaseNodeHeader = forwardRef<
       "mx-0 my-0 -mb-1 flex flex-row items-center justify-between gap-2 px-3 py-2",
       // Remove or modify these classes if you modify the padding in the
       // `<BaseNode />` component.
-      className,
+      className
     )}
   />
 ));
@@ -85,7 +85,7 @@ export const BaseNodeFooter = forwardRef<
     data-slot="base-node-footer"
     className={cn(
       "flex flex-col items-center gap-y-2 border-t px-3 pb-3 pt-2",
-      className,
+      className
     )}
     {...props}
   />

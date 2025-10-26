@@ -1,4 +1,9 @@
-import { FileInputIcon, CheckCircle2, LucideBookText } from "lucide-react";
+import {
+  FileInputIcon,
+  CheckCircle2,
+  LucideBookText,
+  SparklesIcon,
+} from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -27,6 +32,11 @@ const items = [
     title: "Knowledge Base",
     url: "#",
     icon: LucideBookText,
+  },
+  {
+    title: "LLM Component",
+    url: "#",
+    icon: SparklesIcon,
   },
   {
     title: "Output Component",

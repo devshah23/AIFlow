@@ -1,6 +1,6 @@
 import SidebarLayout from "@/components/layouts/SidebarLayout";
 import { CreateFlowSidebar } from "@/components/sidebars/CreateFlowSidebar";
-import FlowLayout from "@/components/workflows/flowLayout";
+import FlowLayout from "@/components/workflows/WorkFlowCanvas";
 
 const CreateFlow = () => {
   return (

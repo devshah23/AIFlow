@@ -119,3 +119,10 @@
     @apply bg-background text-foreground;
   }
 }
+
+.react-flow__node {
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}

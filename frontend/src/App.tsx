@@ -3,6 +3,7 @@ import Chat from "./views/Chat";
 import Home from "./views/Home";
 import CreateFlow from "./views/CreateFlow";
 import Layout from "./components/layouts/MainLayout";
+import { Slide, ToastContainer } from "react-toastify";
 
 export default function App() {
   return (
@@ -14,6 +15,13 @@ export default function App() {
           <Route path="/chat" element={<Chat />} />
         </Route>
       </Routes>
+      <ToastContainer
+        toastClassName={"!text-sm"}
+        autoClose={1500}
+        hideProgressBar={true}
+        position="top-center"
+        transition={Slide}
+      />
     </div>
   );
 }
