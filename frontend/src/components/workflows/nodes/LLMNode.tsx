@@ -11,68 +11,114 @@ import { LLMModels } from "@/configs/LLMConfig";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import React from "react";
+import type { NodeProps } from "@xyflow/react";
+import { useNodeChangeDataContext } from "@/contexts/nodeDataChangeContext";
+import type { LLMNodeType } from "@/types/nodeDataTypes";
+import isEqual from "lodash.isequal";
 
-const LLMNode = () => {
-  return (
-    <>
-      <SimpleNodeLayout
-        title="LLM (Gemini)"
-        icon={<SparklesIcon className="w-3 h-3" />}
-        description="Run a query with Gemini LLM">
-        <div className="flex flex-col gap-2">
-          <Select defaultValue={LLMModels[0].value}>
-            <SelectTrigger className="w-full text-[10px]/6 py-1 font-semibold">
-              <SelectValue placeholder="Select a model" />
-            </SelectTrigger>
-            <SelectContent>
-              {LLMModels.map((data) => (
-                <SelectItem
-                  key={data.value}
-                  value={data.value}
-                  className="text-[10px] font-semibold">
-                  {data.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div>
-            <Label html-for="api-key" className="text-xs font-medium mb-1">
-              API Key
-            </Label>
-            <Input
-              id="api-key"
-              placeholder="Gemini API Key"
-              type="password"
-              className=" !text-[12px]"
-            />
-          </div>
-          <div>
-            <Label html-for="temperature" className="text-xs font-medium mb-1">
-              Temperature
-            </Label>
-            <Input
-              id="temperature"
-              type="number"
-              max={1}
-              min={0}
-              step={0.1}
-              className="!text-[12px]"
-            />
-          </div>
-          <div>
-            <Label htmlFor="user-prompt" className="text-xs font-medium mb-1">
-              Prompt
-            </Label>
-            <Textarea
-              placeholder="Write the prompt here."
-              id="user-prompt"
-              className="!text-[10px] !resize-none !max-h-[40px] scroll-auto"
-            />
-          </div>
-        </div>
-      </SimpleNodeLayout>
-    </>
-  );
-};
+const LLMNode = React.memo(
+  (nodeProps) => {
+    const nodeStateData = nodeProps.data;
+    console.log("LLMNode props:", nodeStateData);
+
+    const { handleNodeDataChange } = useNodeChangeDataContext();
+    const content = React.useMemo(
+      () => (
+        <>
+          <SimpleNodeLayout
+            title="LLM (Gemini)"
+            icon={<SparklesIcon className="w-3 h-3" />}
+            description="Run a query with Gemini LLM">
+            <div className="flex flex-col gap-2">
+              <Select
+                defaultValue={LLMModels[0].value}
+                value={nodeStateData.model}
+                onValueChange={(value) => {
+                  handleNodeDataChange?.({ id: "model", value }, nodeProps.id);
+                }}>
+                <SelectTrigger className="w-full text-[10px]/6 py-1 font-semibold">
+                  <SelectValue placeholder="Select a model" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LLMModels.map((data) => (
+                    <SelectItem
+                      key={data.value}
+                      value={data.value}
+                      className="text-[10px] font-semibold">
+                      {data.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div>
+                <Label html-for="apiKey" className="text-xs font-medium mb-1">
+                  API Key
+                </Label>
+                <Input
+                  id="apiKey"
+                  value={nodeStateData.apiKey}
+                  placeholder="Gemini API Key"
+                  type="password"
+                  className="nodrag !text-[12px]"
+                  onChange={(e) => {
+                    handleNodeDataChange?.(
+                      { id: e.target.id, value: e.target.value },
+                      nodeProps.id
+                    );
+                  }}
+                />
+              </div>
+              <div>
+                <Label
+                  html-for="temperature"
+                  className="text-xs font-medium mb-1">
+                  Temperature
+                </Label>
+                <Input
+                  id="temperature"
+                  type="number"
+                  value={nodeStateData.temperature}
+                  max={1}
+                  min={0}
+                  step={0.05}
+                  className="!text-[12px] appearance-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  onChange={(e) => {
+                    handleNodeDataChange?.(
+                      { id: e.target.id, value: parseFloat(e.target.value) },
+                      nodeProps.id
+                    );
+                  }}
+                />
+              </div>
+              <div>
+                <Label htmlFor="prompt" className="text-xs font-medium mb-1">
+                  Prompt
+                </Label>
+                <Textarea
+                  placeholder="Write the prompt here."
+                  id="prompt"
+                  value={nodeStateData.prompt}
+                  className="!text-[10px] !resize-none !max-h-[40px] scroll-auto"
+                  onChange={(e) => {
+                    handleNodeDataChange?.(
+                      { id: e.target.id, value: e.target.value },
+                      nodeProps.id
+                    );
+                  }}
+                />
+              </div>
+            </div>
+          </SimpleNodeLayout>
+        </>
+      ),
+      [nodeProps.id, handleNodeDataChange, nodeStateData]
+    );
+    return content;
+  },
+  (prevProps: NodeProps<LLMNodeType>, nextProps: NodeProps<LLMNodeType>) => {
+    return isEqual(prevProps.data, nextProps.data);
+  }
+);
 
 export default LLMNode;

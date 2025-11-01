@@ -4,3 +4,5 @@ export const LLMModels = [
   { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
   { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
 ];
+
+export const DefaultLLMModel = "gemini-2.5-pro";

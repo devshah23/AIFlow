@@ -1,6 +1,9 @@
-import type { Edge, Node } from "@xyflow/react";
+import type { Edge } from "@xyflow/react";
+import type { AllNodeType } from "./nodeDataTypes";
 
 export type WorkflowType = {
-  nodes: Node[];
+  name: string;
+  description?: string;
+  nodes: AllNodeType[];
   edges: Edge[];
 };

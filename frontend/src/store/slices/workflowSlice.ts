@@ -3,37 +3,20 @@ import {
   KNOWLEDGEBASENODE,
   LLMNODE,
   OUTPUTNODE,
-} from "@/configs/NodeConfig";
+} from "@/configs/NodeTypeConfig";
+import { createNode } from "@/factories/NodeStateFactory";
+import type { AllNodeType } from "@/types/nodeDataTypes";
 import type { WorkflowType } from "@/types/workflowTypes";
 import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 
 const initialState: WorkflowType = {
+  name: "New Workflow",
   nodes: [
-    {
-      id: "1",
-      type: INPUTNODE,
-      data: { label: "Input Node" },
-      position: { x: 250, y: 5 },
-    },
-    {
-      id: "2",
-      type: KNOWLEDGEBASENODE,
-      data: { label: "Knowledge Base Node" },
-      position: { x: 500, y: 100 },
-    },
-    {
-      id: "3",
-      type: LLMNODE,
-      data: { label: "LLM Node" },
-      position: { x: 400, y: 300 },
-    },
-    {
-      id: "4",
-      type: OUTPUTNODE,
-      data: { label: "Output Node" },
-      position: { x: 600, y: 300 },
-    },
+    createNode(INPUTNODE, "1", { x: 100, y: 150 }),
+    createNode(KNOWLEDGEBASENODE, "2", { x: 350, y: 150 }),
+    createNode(LLMNODE, "3", { x: 600, y: 150 }),
+    createNode(OUTPUTNODE, "4", { x: 950, y: 150 }),
   ],
   edges: [
     // { id: "n1-n2", source: "1", target: "2" },
@@ -46,7 +29,8 @@ export const workflow = createSlice({
   name: "workflow",
   initialState,
   reducers: {
-    setNodes: (state, action: PayloadAction<WorkflowType["nodes"]>) => {
+    setNodes: (state, action: PayloadAction<AllNodeType[]>) => {
+      console.log("From store", action.payload);
       state.nodes = action.payload;
     },
     setEdges: (state, action: PayloadAction<WorkflowType["edges"]>) => {

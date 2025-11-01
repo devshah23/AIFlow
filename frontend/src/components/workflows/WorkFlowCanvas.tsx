@@ -4,9 +4,8 @@ import {
   BackgroundVariant,
   ConnectionMode,
   Controls,
+  Panel,
   ReactFlow,
-  useEdgesState,
-  useNodesState,
   type Connection,
   type Edge,
   type Node,
@@ -22,14 +21,19 @@ import OutputNode from "./nodes/OutputNode";
 import { useDispatch, useSelector } from "react-redux";
 import { useCallback } from "react";
 import { setEdges, setNodes } from "@/store/slices/workflowSlice";
-import type { RootState } from "@/store/store";
 
 import {
   INPUTNODE,
   KNOWLEDGEBASENODE,
   LLMNODE,
   OUTPUTNODE,
-} from "@/configs/NodeConfig";
+} from "@/configs/NodeTypeConfig";
+import { Button } from "../ui/button";
+import { toast } from "react-toastify";
+import useIsValidConnection from "@/hooks/useIsValidConnection";
+import type { RootState } from "@/store/store";
+import type { AllNodeType } from "@/types/nodeDataTypes";
+import { Play } from "lucide-react";
 
 const nodeTypes = {
   [INPUTNODE]: InputNode,
@@ -38,98 +42,47 @@ const nodeTypes = {
   [OUTPUTNODE]: OutputNode,
 };
 
-// const initialNodes = [
-//   {
-//     id: "1",
-//     type: "input",
-//     data: { label: "Input Node" },
-//     position: { x: 250, y: 5 },
-//   },
-//   {
-//     id: "2",
-//     type: "knowledgeBase",
-//     data: { label: "Knowledge Base Node" },
-//     position: { x: 500, y: 100 },
-//   },
-//   {
-//     id: "3",
-//     type: "llmNode",
-//     data: { label: "LLM Node" },
-//     position: { x: 400, y: 300 },
-//   },
-//   {
-//     id: "4",
-//     type: "outputNode",
-//     data: { label: "Output Node" },
-//     position: { x: 600, y: 300 },
-//   },
-// ];
+type WorkFlowCanvasProps = {
+  nodes: AllNodeType[];
+  edges: Edge[];
+  setNodes: React.Dispatch<React.SetStateAction<AllNodeType[]>>;
+  setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
+  onNodesChange: OnNodesChange<AllNodeType>;
+  onEdgesChange: OnEdgesChange<Edge>;
+  handleNodeDataChange?: (
+    changedData: { id: string; value: string },
+    nodeId: string
+  ) => void;
+};
 
-// const initialEdges = [
-//   { id: "n1-n2", source: "1", target: "2" },
-//   { id: "n1-n3", source: "2", target: "3" },
-//   { id: "n1-n4", source: "1", target: "4" },
-// ];
-
-const FlowLayout = () => {
+const WorkFlowCanvas = ({
+  nodes,
+  edges,
+  setNodes: setNodesLocal,
+  setEdges: setEdgesLocal,
+  onEdgesChange,
+  onNodesChange,
+}: WorkFlowCanvasProps) => {
   // My logic of saving the workflow is based on syncing local state with Redux only when user chooses to save.
   // This may lead to inconsistencies if user makes changes but doesn't save.
   const dispatch = useDispatch();
-  const { nodes: savedNodes, edges: savedEdges } = useSelector(
+  const { edges: edgesStore, nodes: nodesStore } = useSelector(
     (state: RootState) => state.workflow
   );
+  const isValidConnection = useIsValidConnection(nodes, edges);
+  // TODO:Work of nodeStates with Save done here. Remaining reset, delete,updating localstate on node for each node type,removing context too.
+  const saveWorkflowHandler = () => {
+    dispatch(setNodes(nodes));
+    dispatch(setEdges(edges));
 
-  // Local state synced with Redux
-  const [nodes, setNodesLocal, onNodesChange] = useNodesState(savedNodes);
-  const [edges, setEdgesLocal, onEdgesChange] = useEdgesState(savedEdges);
-  const checkNodeCycle = useCallback(function checkCycle(
-    source: string,
-    target: string,
-    edges: Edge[]
-  ) {
-    const visited = new Set();
-    visited.add(source);
-    visited.add(target);
+    toast.success("Workflow saved successfully!", { autoClose: 500 });
+  };
 
-    function dfs(node: string) {
-      // if (node === source) return true;
-      const nextNodes = edges
-        .filter((e) => e.source === node)
-        .map((e) => e.target);
-      for (const n of nextNodes) {
-        if (!visited.has(n)) {
-          visited.add(n);
-          return dfs(n);
-        } else {
-          return false;
-        }
-      }
-      return true;
-    }
-
-    return dfs(target);
-  },
-  []);
-
-  const isValidConnection = useCallback(
-    (connection: Connection | Edge) => {
-      console.log("Validating connection:", connection);
-      console.log("Current nodes:", nodes);
-      console.log("Current edges:", edges);
-      if (connection.source == connection.target) return false;
-      const targetNode = nodes.find((node) => node.id === connection.target);
-      const sourceNode = nodes.find((node) => node.id === connection.source);
-      if (!targetNode || !sourceNode) return false;
-      if (sourceNode.type === OUTPUTNODE) return false;
-      if (!checkNodeCycle(connection.source, connection.target, edges)) {
-        console.log("Cycle detected");
-        return false;
-      }
-      console.log("Connection valid");
-      return true;
-    },
-    [nodes, edges, checkNodeCycle]
-  );
+  const resetWorkflowHandler = () => {
+    setNodesLocal(nodesStore);
+    setEdgesLocal(edgesStore);
+    toast.info("Workflow reset to last saved state.", { autoClose: 500 });
+  };
 
   const onConnect = useCallback(
     (params: Connection) => {
@@ -138,7 +91,7 @@ const FlowLayout = () => {
     },
     [edges, setEdgesLocal]
   );
-  const handleNodesChange: OnNodesChange<Node> = useCallback(
+  const handleNodesChange: OnNodesChange<AllNodeType> = useCallback(
     (changes) => {
       onNodesChange(changes);
     },
@@ -163,7 +116,6 @@ const FlowLayout = () => {
             )
         );
         setNodesLocal(newNodes);
-        dispatch(setNodes(newNodes));
       }
       if (deletedElements.edges) {
         const newEdges = edges.filter(
@@ -173,37 +125,57 @@ const FlowLayout = () => {
             )
         );
         setEdgesLocal(newEdges);
-        dispatch(setEdges(newEdges));
       }
     },
-    [edges, nodes, setNodesLocal, setEdgesLocal, dispatch]
+    [edges, nodes, setNodesLocal, setEdgesLocal]
   );
 
   return (
     <div className="h-full w-full">
       <ReactFlow
         connectionMode={ConnectionMode.Strict}
-        // defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
+        deleteKeyCode={["Delete", "Backspace"]}
+        defaultViewport={{ x: 0, y: 0, zoom: 0.75 }}
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
         onNodesChange={handleNodesChange}
         onEdgesChange={handleEdgesChange}
-        // on={onConnectStart}
         onConnect={onConnect}
         onDelete={onDelete}
-        isValidConnection={isValidConnection}
-        // defaultEdgeOptions={{
-        //   selectable: true,
-        //   deletable: true,
-        // }}
-      >
+        isValidConnection={isValidConnection}>
+        <Panel position="top-right">
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              className="bg-green-600 text-green-100 hover:bg-green-700 hover:text-white"
+              onClick={saveWorkflowHandler}>
+              Save
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={resetWorkflowHandler}
+              className="text-accent bg-gray-500 hover:text-white hover:bg-gray-600">
+              Reset
+            </Button>
+          </div>
+        </Panel>
+        <Panel position="bottom-right">
+          <Button
+            variant="outline"
+            size="icon-lg"
+            className="rounded-full mr-10 mb-10 bg-green-500 hover:bg-green-400 *:text-white">
+            <Play className="w-3 h-3" />
+          </Button>
+        </Panel>
         <Controls />
         {/* <MiniMap /> */}
-        <Background variant={BackgroundVariant.Lines} />
+        <Background variant={BackgroundVariant.Cross} color="lightgray" />
       </ReactFlow>
     </div>
   );
 };
 
-export default FlowLayout;
+export default WorkFlowCanvas;

@@ -9,7 +9,7 @@ const Layout = () => {
   return (
     <>
       <Navbar navigationLinks={navigationLinks} logo={CompanyLogo} />
-      <main className="max-h-[calc(100vh-64px)] w-full flex-grow pt-2 mx-auto px-2">
+      <main className="max-h-[calc(100vh-64px)] h-full w-full flex-grow pt-2 mx-auto px-2">
         <Outlet />
       </main>
     </>
