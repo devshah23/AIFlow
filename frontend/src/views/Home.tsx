@@ -87,8 +87,10 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Eye, Workflow, Plus } from "lucide-react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 
 const Home = () => {
+  const navigate = useNavigate();
   const workflowList = [
     {
       id: "a",
@@ -105,7 +107,87 @@ const Home = () => {
       name: "Feedback Collection Flow",
       description: "Collects user feedback and updates dashboards.",
     },
+    {
+      id: "c",
+      name: "Feedback Collection Flow",
+      description: "Collects user feedback and updates dashboards.",
+    },
+    {
+      id: "c",
+      name: "Feedback Collection Flow",
+      description: "Collects user feedback and updates dashboards.",
+    },
+    {
+      id: "c",
+      name: "Feedback Collection Flow",
+      description: "Collects user feedback and updates dashboards.",
+    },
+    {
+      id: "c",
+      name: "Feedback Collection Flow",
+      description: "Collects user feedback and updates dashboards.",
+    },
+    {
+      id: "c",
+      name: "Feedback Collection Flow",
+      description: "Collects user feedback and updates dashboards.",
+    },
+    {
+      id: "c",
+      name: "Feedback Collection Flow",
+      description: "Collects user feedback and updates dashboards.",
+    },
+    {
+      id: "c",
+      name: "Feedback Collection Flow",
+      description: "Collects user feedback and updates dashboards.",
+    },
+    {
+      id: "c",
+      name: "Feedback Collection Flow",
+      description: "Collects user feedback and updates dashboards.",
+    },
+    {
+      id: "c",
+      name: "Feedback Collection Flow",
+      description: "Collects user feedback and updates dashboards.",
+    },
+    {
+      id: "c",
+      name: "Feedback Collection Flow",
+      description: "Collects user feedback and updates dashboards.",
+    },
+    {
+      id: "c",
+      name: "Feedback Collection Flow",
+      description: "Collects user feedback and updates dashboards.",
+    },
+    {
+      id: "c",
+      name: "Feedback Collection Flow",
+      description: "Collects user feedback and updates dashboards.",
+    },
+    {
+      id: "c",
+      name: "Feedback Collection Flow",
+      description: "Collects user feedback and updates dashboards.",
+    },
+    {
+      id: "c",
+      name: "Feedback Collection Flow",
+      description: "Collects user feedback and updates dashboards.",
+    },
+    {
+      id: "c",
+      name: "Feedback Collection Flow",
+      description: "Collects user feedback and updates dashboards.",
+    },
   ];
+
+  const navigateToWorkflow = (id: string) => {
+    navigate(`/create/${id}`);
+    console.log(`Navigating to workflow with id: ${id}`);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-gray-50 to-gray-100 text-gray-900 px-10 py-8">
@@ -122,7 +204,8 @@ const Home = () => {
 
         <Button
           variant="default"
-          className="bg-gradient-to-r from-gray-800 to-gray-400 hover:opacity-90 text-white flex items-center gap-2 px-4 py-2 shadow-md shadow-gray-200 transition-all">
+          onClick={() => navigateToWorkflow("new")}
+          className="bg-gradient-to-r from-gray-800 to-gray-400 hover:opacity-90 text-white flex items-center gap-2 px-4 py-2 shadow-md shadow-gray-200 transition-all cursor-pointer">
           <Plus size={18} /> New Workflow
         </Button>
       </div>
@@ -141,6 +224,7 @@ const Home = () => {
               id={wf.id}
               name={wf.name}
               description={wf.description}
+              navigateToWorkflow={navigateToWorkflow}
             />
           </motion.div>
         ))}
@@ -153,9 +237,15 @@ interface WorkflowCardProps {
   id: string;
   name: string;
   description: string;
+  navigateToWorkflow: (id: string) => void;
 }
 
-const WorkflowCard = ({ id, name, description }: WorkflowCardProps) => {
+const WorkflowCard = ({
+  id,
+  name,
+  description,
+  navigateToWorkflow,
+}: WorkflowCardProps) => {
   return (
     <Card className="relative group border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-lg transition-all duration-300 hover:scale-[1.02] hover:border-none hover:bg-gradient-to-br from-gray-800 via-gray-200 to-gray-400">
       {/* Subtle gradient border glow */}
@@ -180,7 +270,8 @@ const WorkflowCard = ({ id, name, description }: WorkflowCardProps) => {
         <CardFooter className="flex justify-end">
           <Button
             variant="outline"
-            className="flex items-center justify-center gap-2 border-gray-300 text-gray-700 group-hover:bg-gray-100 hover:bg-gradient-to-r hover:from-gray-800 hover:to-gray-600 hover:text-white hover:border-transparent transition-all">
+            onClick={() => navigateToWorkflow(id)}
+            className="flex items-center justify-center gap-2 border-gray-300 text-gray-700 group-hover:bg-gray-100 hover:bg-gradient-to-r hover:from-gray-800 hover:to-gray-600 hover:text-white hover:border-transparent transition-all cursor-pointer">
             <Eye size={16} /> View
           </Button>
         </CardFooter>

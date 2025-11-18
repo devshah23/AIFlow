@@ -10,7 +10,7 @@ import type { WorkflowType } from "@/types/workflowTypes";
 import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 
-const initialState: WorkflowType = {
+const workflowMockData: WorkflowType = {
   name: "New Workflow",
   nodes: [
     createNode(INPUTNODE, "1", { x: 100, y: 150 }),
@@ -27,7 +27,7 @@ const initialState: WorkflowType = {
 
 export const workflow = createSlice({
   name: "workflow",
-  initialState,
+  initialState: workflowMockData,
   reducers: {
     setNodes: (state, action: PayloadAction<AllNodeType[]>) => {
       console.log("From store", action.payload);
@@ -36,8 +36,13 @@ export const workflow = createSlice({
     setEdges: (state, action: PayloadAction<WorkflowType["edges"]>) => {
       state.edges = action.payload;
     },
+    setWorkflow: (state, action: PayloadAction<WorkflowType>) => {
+      state.name = action.payload.name;
+      state.nodes = action.payload.nodes;
+      state.edges = action.payload.edges;
+    },
   },
 });
 
-export const { setNodes, setEdges } = workflow.actions;
+export const { setNodes, setEdges, setWorkflow } = workflow.actions;
 export default workflow.reducer;
