@@ -6,3 +6,9 @@ sqlalchemy[asyncio]
 asyncpg
 python-dotenv
 alembic
+google-genai
+supabase
+python-multipart
+pypdf
+python-docx
+pandas

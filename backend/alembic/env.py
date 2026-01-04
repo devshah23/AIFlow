@@ -5,11 +5,10 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import  create_async_engine
 
-from app.db import DB_URL, metadata
+from app.database_engine import DB_URL, metadata
 
 
 config = context.config
-print(metadata.tables.keys())
 
 # Logging config
 if config.config_file_name is not None:
