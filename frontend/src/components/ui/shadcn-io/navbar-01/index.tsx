@@ -238,7 +238,7 @@ export const Navbar01 = React.forwardRef<HTMLElement, Navbar01Props>(
           </div>
           {/* Right side */}
           <div className="flex items-center gap-3">
-            <Button
+            {/* <Button
               variant="ghost"
               size="sm"
               className="text-sm font-medium hover:bg-accent hover:text-accent-foreground"
@@ -247,7 +247,7 @@ export const Navbar01 = React.forwardRef<HTMLElement, Navbar01Props>(
                 if (onSignInClick) onSignInClick();
               }}>
               {signInText}
-            </Button>
+            </Button> */}
             {/* <Button
               size="sm"
               className="text-sm font-medium px-4 h-9 rounded-md shadow-sm"

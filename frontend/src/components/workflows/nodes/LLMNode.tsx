@@ -7,7 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { LLMModels } from "@/configs/LLMConfig";
+import { DefaultLLMModel, LLMModels } from "@/configs/LLMConfig";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,7 +20,7 @@ import isEqual from "lodash.isequal";
 const LLMNode = React.memo(
   (nodeProps) => {
     const nodeStateData = nodeProps.data;
-    console.log("LLMNode props:", nodeStateData);
+    console.log("Rendering LLMNode with data:", nodeStateData);
 
     const { handleNodeDataChange } = useNodeChangeDataContext();
     const content = React.useMemo(
@@ -32,7 +32,7 @@ const LLMNode = React.memo(
             description="Run a query with Gemini LLM">
             <div className="flex flex-col gap-2">
               <Select
-                defaultValue={LLMModels[0].value}
+                defaultValue={DefaultLLMModel}
                 value={nodeStateData.model}
                 onValueChange={(value) => {
                   handleNodeDataChange?.({ id: "model", value }, nodeProps.id);
@@ -84,19 +84,24 @@ const LLMNode = React.memo(
                   step={0.05}
                   className="!text-[12px] appearance-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   onChange={(e) => {
-                    handleNodeDataChange?.(
-                      { id: e.target.id, value: parseFloat(e.target.value) },
-                      nodeProps.id
-                    );
+                    const value = parseFloat(e.target.value);
+                    console.log("Temperature value:", value);
+
+                    if (isNaN(value) || (value <= 1 && value >= 0)) {
+                      handleNodeDataChange?.(
+                        { id: e.target.id, value: value },
+                        nodeProps.id
+                      );
+                    }
                   }}
                 />
               </div>
               <div>
                 <Label htmlFor="prompt" className="text-xs font-medium mb-1">
-                  Prompt
+                  Task Instruction
                 </Label>
                 <Textarea
-                  placeholder="Write the prompt here."
+                  placeholder="Write the task instruction here."
                   id="prompt"
                   value={nodeStateData.prompt}
                   className="!text-[10px] !resize-none !max-h-[40px] scroll-auto"

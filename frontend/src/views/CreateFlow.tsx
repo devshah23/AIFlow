@@ -1,10 +1,9 @@
+import workflowService from "@/apis/workflowService";
 import SidebarLayout from "@/components/layouts/SidebarLayout";
 import CreateFlowSidebar from "@/components/sidebars/CreateFlowSidebar";
 import WorkflowCanvas from "@/components/workflows/WorkFlowCanvas";
 import {
   INPUTNODE,
-  KNOWLEDGEBASENODE,
-  LLMNODE,
   OUTPUTNODE,
   type NODE_TYPES,
 } from "@/configs/NodeTypeConfig";
@@ -14,46 +13,103 @@ import { createNode } from "@/factories/NodeStateFactory";
 import { setWorkflow } from "@/store/slices/workflowSlice";
 import type { RootState } from "@/store/store";
 import type { AllNodeType, FileMetaDataType } from "@/types/nodeDataTypes";
-import type { WorkflowType } from "@/types/workflowTypes";
+
 import { useEdgesState, useNodesState } from "@xyflow/react";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useParams } from "react-router-dom";
 import { toast } from "react-toastify";
+import { useBlocker } from "react-router-dom";
+import isEqual from "lodash.isequal";
+import {
+  Dialog,
+  DialogDescription,
+  DialogHeader,
+  DialogContent,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 const CreateFlow = () => {
-  // Get routeparams using hooks
   const { id: workflowId } = useParams();
+  const [showConfirmModel, setShowConfirmModal] = useState(false);
   const dispatch = useDispatch();
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => {
+    const areNodesEqual = () => {
+      if (nodes.length !== savedNodes.length) {
+        return false;
+      }
+      for (let i = 0; i < nodes.length; i++) {
+        if (
+          !isEqual(nodes[i].data, savedNodes[i].data) ||
+          nodes[i].type !== savedNodes[i].type ||
+          nodes[i].position.x !== savedNodes[i].position.x ||
+          nodes[i].position.y !== savedNodes[i].position.y
+        ) {
+          return false;
+        }
+      }
+      return true;
+    };
+
+    return (
+      !areNodesEqual() ||
+      (!isEqual(edges, savedEdges) &&
+        currentLocation.pathname !== nextLocation.pathname)
+    );
+  });
 
   useEffect(() => {
-    console.log("Workflow ID from route params:", workflowId);
+    if (blocker.state === "blocked") {
+      setShowConfirmModal(true);
+    }
+  }, [blocker.state]);
 
-    // fetch workflow data based on the ID if needed
-    const dummyWorkflowData: WorkflowType = {
-      name: "New Workflow",
-      nodes: [
-        createNode(INPUTNODE, "1", { x: 100, y: 150 }),
-        createNode(KNOWLEDGEBASENODE, "2", { x: 350, y: 150 }),
-        createNode(LLMNODE, "3", { x: 600, y: 150 }),
-        createNode(OUTPUTNODE, "4", { x: 950, y: 150 }),
-      ],
-      edges: [
-        // { id: "n1-n2", source: "1", target: "2" },
-        // { id: "n1-n3", source: "2", target: "3" },
-        // { id: "n1-n4", source: "1", target: "4" },
-      ],
+  const handleCancelNavigation = () => {
+    blocker.reset();
+    setShowConfirmModal(false);
+  };
+
+  useEffect(() => {
+    const fetchWorkflowData = async () => {
+      if (!workflowId) {
+        toast.error("Invalid workflow ID");
+        return;
+      }
+
+      try {
+        const response = await workflowService.getWorkflowById(
+          Number(workflowId)
+        );
+
+        if (!response?.success || !response.data) {
+          throw new Error(response?.message || "Failed to fetch workflow data");
+        }
+
+        dispatch(setWorkflow(response.data));
+      } catch (error) {
+        console.error("Error fetching workflow:", error);
+        toast.error("Failed to fetch workflow data. Please try again.");
+      }
     };
-    dispatch(setWorkflow(dummyWorkflowData));
+
+    fetchWorkflowData();
   }, [workflowId, dispatch]);
 
   const { nodes: savedNodes, edges: savedEdges } = useSelector(
     (state: RootState) => state.workflow
   );
+
   const [nodes, setNodesLocal, onNodesChange] =
     useNodesState<AllNodeType>(savedNodes);
   const [edges, setEdgesLocal, onEdgesChange] = useEdgesState(savedEdges);
 
+  // Is nodesLocal required in dependecny
+  useEffect(() => {
+    setNodesLocal(savedNodes);
+    setEdgesLocal(savedEdges);
+  }, [savedNodes, savedEdges, setNodesLocal, setEdgesLocal]);
   const addNodesToWF = useCallback(
     (nodeType: NODE_TYPES) => {
       setNodesLocal((prevNodes) => {
@@ -82,9 +138,24 @@ const CreateFlow = () => {
 
   function updateNodeData<T extends AllNodeType>(
     node: T,
-    changedData: { id: string; value: string | number | FileMetaDataType[] }
+    changedData: { id: string; value: string | number | FileMetaDataType }
   ): T {
-    console.log("Updating node data:", node.id, changedData, node);
+
+    // if changed data is file metadata, we need to handle it differently
+    if (
+      typeof changedData.value === "object" &&
+      "metadataId" in changedData.value
+    ) {
+      
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          fileName: (changedData.value as FileMetaDataType).fileName,
+          metadataId: (changedData.value as FileMetaDataType).metadataId,
+        },
+      };
+    }
 
     return {
       ...node,
@@ -96,7 +167,7 @@ const CreateFlow = () => {
   }
   const handleNodeDataChange = useCallback(
     (
-      changedData: { id: string; value: string | number | FileMetaDataType[] },
+      changedData: { id: string; value: string | number | FileMetaDataType },
       nodeId: string
     ) => {
       setNodesLocal((nds) => {
@@ -122,6 +193,18 @@ const CreateFlow = () => {
           />
         }>
         <NodeDataChangeContext.Provider value={nodeDataChangeContextValue}>
+          <Dialog
+            open={showConfirmModel}
+            onOpenChange={(open) => {
+              if (!open) {
+                blocker.reset();
+              }
+              setShowConfirmModal(open);
+            }}>
+            <DialogContent>
+              <ConfirmNavigationModal onCancel={handleCancelNavigation} />
+            </DialogContent>
+          </Dialog>
           <WorkflowCanvas
             nodes={nodes}
             edges={edges}
@@ -133,6 +216,24 @@ const CreateFlow = () => {
           />
         </NodeDataChangeContext.Provider>
       </SidebarLayout>
+    </>
+  );
+};
+
+const ConfirmNavigationModal = ({ onCancel }: { onCancel: () => void }) => {
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>Unsaved Changes</DialogTitle>
+        <DialogDescription>
+          You have unsaved changes in your workflow. Please save them.
+        </DialogDescription>
+      </DialogHeader>
+      <DialogFooter>
+        <Button onClick={onCancel} variant={"destructive"}>
+          Close
+        </Button>
+      </DialogFooter>
     </>
   );
 };

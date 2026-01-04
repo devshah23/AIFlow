@@ -3,7 +3,7 @@ import { createContext, useContext } from "react";
 
 export const NodeDataChangeContext = createContext<{
   handleNodeDataChange?: (
-    changedData: { id: string; value: string | number | FileMetaDataType[] },
+    changedData: { id: string; value: string | number | FileMetaDataType },
     nodeId: string
   ) => void;
 }>({});

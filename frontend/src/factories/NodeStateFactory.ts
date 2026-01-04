@@ -19,7 +19,7 @@ export function createNode<T extends keyof NodeTypeMap>(
 ): AllNodeType {
   const defaultData = getDefaultNodeData(nodeType);
   const newNode = {
-    id,
+    id: "new" + id, //added new to id for backend identification
     position,
     type: nodeType,
     data: defaultData,
@@ -57,27 +57,19 @@ export function getStatesFromNodes(node: {
   switch (node.type) {
     case INPUTNODE:
       return {
-        id: node.id,
-        nodeType: INPUTNODE,
-        data: node.data as NodeTypeMap[typeof INPUTNODE],
+        ...(node.data as NodeTypeMap[typeof INPUTNODE]),
       };
     case LLMNODE:
       return {
-        id: node.id,
-        nodeType: LLMNODE,
-        data: node.data as NodeTypeMap[typeof LLMNODE],
+        ...(node.data as NodeTypeMap[typeof LLMNODE]),
       };
     case KNOWLEDGEBASENODE:
       return {
-        id: node.id,
-        nodeType: KNOWLEDGEBASENODE,
-        data: node.data as NodeTypeMap[typeof KNOWLEDGEBASENODE],
+        ...(node.data as NodeTypeMap[typeof KNOWLEDGEBASENODE]),
       };
     case OUTPUTNODE:
       return {
-        id: node.id,
-        nodeType: OUTPUTNODE,
-        data: node.data as NodeTypeMap[typeof OUTPUTNODE],
+        ...(node.data as NodeTypeMap[typeof OUTPUTNODE]),
       };
     default:
       throw new Error(`Unknown node type: ${node.type}`);

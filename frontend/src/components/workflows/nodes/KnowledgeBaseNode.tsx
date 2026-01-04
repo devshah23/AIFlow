@@ -2,7 +2,7 @@ import { Label } from "@/components/ui/label";
 import SimpleNodeLayout from "../nodeLayouts/SimpleNodeLayout";
 import { BookTextIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import React from "react";
+import React, { useState } from "react";
 import { type NodeProps } from "@xyflow/react";
 import { useNodeChangeDataContext } from "@/contexts/nodeDataChangeContext";
 import type {
@@ -10,11 +10,15 @@ import type {
   KnowledgeBaseNodeType,
 } from "@/types/nodeDataTypes";
 import isEqual from "lodash.isequal";
+import fileUploadService from "@/apis/fileUploadService";
+import { toast } from "react-toastify";
+import { Spinner } from "@/components/ui/spinner";
 
 const KnowledgeBaseNode = React.memo(
   (nodeProps) => {
     console.log("KnowledgeBaseNode props:", nodeProps);
     const { handleNodeDataChange } = useNodeChangeDataContext();
+    const [uploadLoading, setUploadLoading] = useState(false);
     const content = React.useMemo(
       () => (
         <>
@@ -24,38 +28,76 @@ const KnowledgeBaseNode = React.memo(
             description="Let the LLM search info in your file">
             <Label htmlFor="files" className="text-xs font-medium mb-1">
               File for Knowledge Base
-              {nodeProps.data.files.length != 0 &&
-                `: ${nodeProps.data.files[0].fileName}`}
+              {nodeProps.data && `: ${nodeProps.data.fileName}`}
+              {uploadLoading && <Spinner />}
             </Label>
+            <Input hidden id="metadata_id" value={nodeProps.data.metadataId} />
             <Input
               id="files"
-              multiple
               type="file"
-              onChange={(e) => {
-                const files = e.target.files ? Array.from(e.target.files) : [];
-                // store file to backend write fn here.Then store the metadata in node data
-                const dummyMetaData: FileMetaDataType[] = [
-                  {
-                    fileId: "1",
-                    fileName: files[0].name,
-                    fileSize: files[0].size.toString(),
-                    fileType: files[0].type,
-                    uploadedUrl: "abvd",
-                    uploadedAt: new Date().toISOString(),
-                  },
-                ];
-                handleNodeDataChange?.(
-                  { id: e.target.id, value: dummyMetaData },
-                  nodeProps.id
-                );
-                e.target.value = "";
+              disabled={uploadLoading}
+              onChange={async (e) => {
+                const file = e.target.files?.[0]; // Get the first file
+                if (!file) return;
+
+                if (file.size > 5 * 1024 * 1024) {
+                  toast.error("File is too large. Max limit is 5MB.");
+                  e.target.value = "";
+                  return;
+                }
+
+                setUploadLoading(true);
+                const loadingToast = toast.loading("Uploading file...");
+
+                try {
+                  const response = await fileUploadService.uploadFile(file);
+
+                  if (response && response.success) {
+                    const { metadata_id, file_name } = response.data;
+
+                    const metaData: FileMetaDataType = {
+                      metadataId: metadata_id.toString(),
+                      fileName: file_name,
+                    };
+                    console.log("Uploaded file metadata:", metaData);
+                    handleNodeDataChange?.(
+                      { id: e.target.id, value: metaData },
+                      nodeProps.id
+                    );
+
+                    toast.update(loadingToast, {
+                      render: "File uploaded successfully!",
+                      type: "success",
+                      isLoading: false,
+                      autoClose: 1000,
+                    });
+                  } else {
+                    throw new Error(
+                      response?.message || "Upload failed on server."
+                    );
+                  }
+                } catch (error: Error | any) {
+                  console.error("File Upload Error:", error);
+
+                  const errorMessage =
+                    error?.response?.data?.message || "Error uploading file.";
+                  toast.update(loadingToast, {
+                    render: errorMessage,
+                    type: "error",
+                    isLoading: false,
+                    autoClose: 2000,
+                  });
+                } finally {
+                  setUploadLoading(false);
+                  e.target.value = "";
+                }
               }}
               className=" file:text-[12px] !text-[12px]"
             />
           </SimpleNodeLayout>
         </>
       ),
-      [handleNodeDataChange, nodeProps.id, nodeProps.data.files]
+      [handleNodeDataChange, nodeProps.id, nodeProps.data, uploadLoading]
     );
     return content;
   },
