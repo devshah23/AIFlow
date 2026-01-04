@@ -1,5 +1,6 @@
 import json
 from fastapi import FastAPI
+import os
 from dotenv import load_dotenv
 from app.api.workflow import router as workflow_router
 from app.api.execution import router as workflow_execution_router
@@ -12,10 +13,15 @@ load_dotenv()
 
 app = FastAPI(title="AIFlow")
 
+frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
 origins = [
-    "http://localhost:5173",  
+    frontend_url,
+    "http://localhost:5173",
     "http://localhost:3000",
 ]
+
+origins = list(set(origins))
 
 app.add_middleware(
     CORSMiddleware,
