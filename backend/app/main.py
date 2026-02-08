@@ -1,4 +1,3 @@
-import json
 from fastapi import FastAPI
 import os
 from dotenv import load_dotenv
@@ -7,7 +6,6 @@ from app.api.execution import router as workflow_execution_router
 from app.api.chat import router as chat_router
 from app.api.upload import file_upload_router 
 from fastapi.middleware.cors import CORSMiddleware
-
 from app.utils.exception_handler import register_global_exception_handlers
 load_dotenv()
 
@@ -41,4 +39,4 @@ app.include_router(chat_router,tags=["Chats"])
 
 @app.get("/")
 def root():
-    return {"message": "Welcome to AIFlow!"}
+    return {"message": "AIFlow is running!"}

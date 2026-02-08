@@ -3,92 +3,113 @@ import uuid
 from fastapi import UploadFile
 from sqlmodel import select
 from supabase import create_client
-
 from app.exceptions.Exceptions import InvalidFileFormatException
 from app.models.file_metadata import FileMetadata
 from app.models.workflow_nodes import WorkflowNodes, WorkflowNodesTypes
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from fastapi import UploadFile
+import uuid
 
-async def upload_file(file: UploadFile):
-    allowed_types = {
-        "application/pdf",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "text/csv",
-        "application/csv",
-        "text/plain",
-    }
+class KBFile:
+    VALID_FILE_TYPES = [
+            "application/pdf",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "text/csv",
+            "application/csv",
+            "text/plain",
+        ]
+    def __init__(self, file: UploadFile):
+        self.file = file
 
-    # --- Validate File Type ---
-    if file.content_type not in allowed_types:
-        raise InvalidFileFormatException(f"Unsupported file type: {file.content_type}")
+    def validate_file(self) -> None:
+        if self.file.content_type not in self.VALID_FILE_TYPES:
+            raise InvalidFileFormatException(
+                f"Unsupported file type: {self.file.content_type}"
+            )
 
-    if file.filename:
-        ext = file.filename.rsplit(".", 1)[-1]
-    else:
-        ext = "dat"
+    def get_file_name(self) -> str:
+        file_extension = "dat"
+        if self.file.filename:
+            file_extension = self.file.filename.rsplit(".", 1)[-1]
+        return f"{uuid.uuid4()}.{file_extension}"
 
-    new_name = f"{uuid.uuid4()}.{ext}"
-
-    supabase = create_client(os.environ["SUPABASE_URL"],os.environ["SUPABASE_SERVICE_ROLE_KEY"])
-
-    # --- Read File Content Once ---
-    try:
-        file_bytes = await file.read()
+    async def get_file_bytes(self) -> bytes:
+        file_bytes = await self.file.read()
         if not file_bytes:
-            raise Exception("Uploaded file is empty.")
-    except Exception as e:
-        raise Exception(f"Failed to read uploaded file: {str(e)}")
+            raise Exception("Uploaded file is empty or cannot be read.")
+        return file_bytes
+    
+    def get_content_type(self) -> str:
+        return self.file.content_type or ""
 
-    # --- Upload to Supabase Storage ---
-    try:
-        upload_res = supabase.storage.from_("workflow_kb_files").upload(
-           new_name, file_bytes
+
+class SupabaseService:
+    FILE_BUCKET_NAME = "workflow_kb_files"
+    FILE_METADATA_TABLE = "file_metadata"
+    def __init__(self):
+            self.supabase = create_client(os.environ["SUPABASE_URL"],os.environ["SUPABASE_SERVICE_ROLE_KEY"]) 
+    
+    def __upload_to_storage(self, file_name:str, file_bytes:bytes) -> None:
+        upload_res = self.supabase.storage.from_(self.FILE_BUCKET_NAME).upload(
+        file_name, file_bytes
         )
-
-        # Supabase Python client sometimes returns None for errors
-        if upload_res is None:
-            raise Exception("Supabase returned None on file upload.")
-
-        # Sometimes returns dict with 'error'
-        if isinstance(upload_res, dict) and upload_res.get("error"):
-            raise Exception(upload_res["error"]["message"])
         
+        # Error without details
+        if upload_res is None:
+            raise Exception("Supabase file upload error")
 
-    except Exception as e:
-        raise Exception(f"Failed to upload file to Supabase storage")
-
-    try:
-        insert_res = supabase.table("file_metadata").insert(
+        # Error with details in dict
+        if isinstance(upload_res, dict) and upload_res.get("error"):
+            raise Exception("Supabase File Upload Error:" + upload_res["error"]["message"])
+    
+    
+    def __insert_metadata(self, file_name:str, content_type:str) -> dict:
+        insert_res = self.supabase.table(self.FILE_METADATA_TABLE).insert(
                 {
-                    "file_name": new_name,
-                    "file_type": file.content_type,
-                }
-            ).execute()
+                    "file_name": file_name,
+                    "file_type": content_type,
+                }).execute()
+        
         if getattr(insert_res, "error", None):
-            raise Exception(f"Supabase insert error")
+            raise Exception("Supabase metadata insert error")
         
         insert_data_response = getattr(insert_res, "data", None)
         if not insert_data_response or not isinstance(insert_data_response, list):
-            raise Exception("Invalid response from Supabase on insert.")
+            raise Exception("Supabase Insert Error")
         
-        insert_result_data = insert_data_response[0]
-    except Exception as e:
-        # Cleanup orphaned file
+        return insert_data_response[0]
+
+    def process_file_upload(self,file_name:str, file_bytes:bytes, content_type:str) -> dict:
+        self.__upload_to_storage(file_name, file_bytes)
         try:
-            supabase.storage.from_("workflow_kb_files").remove([new_name])
-        except Exception:
-            pass
+            return self.__insert_metadata(file_name, content_type)
+        except Exception as e:
+            # Cleanup orphaned file
+            self.supabase.storage.from_(self.FILE_BUCKET_NAME).remove([file_name])
+            raise e 
 
-        raise Exception(f"Failed to store file metadata")
 
-    return {
-        "metadata_id": insert_result_data.get("id"),
-        "success": True,
-        "file_name": new_name,
-        "file_type": file.content_type,
-    }
+async def upload_file(uploaded_file: UploadFile):
+    try:
+        file=KBFile(uploaded_file)
+        
+        file.validate_file()
+        file_name = file.get_file_name()
+        file_bytes=await file.get_file_bytes()
+        
+        supabase_instance=SupabaseService()
+        uploaded_file_metadata = supabase_instance.process_file_upload(file_name, file_bytes, file.get_content_type())
 
+        return {
+            "metadata_id": uploaded_file_metadata.get("id"),
+            "success": True,
+            "file_name": file_name,
+            "file_type": file.get_content_type(),
+        }
+    
+    except Exception as e:
+        raise Exception(f"File upload failed: {str(e)}")
 
 
 async def get_uploaded_file_metadata(db:AsyncSession,nodes:list[WorkflowNodes]) ->list[WorkflowNodes]:
