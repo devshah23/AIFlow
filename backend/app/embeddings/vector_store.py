@@ -1,4 +1,3 @@
-
 import os
 from postgrest import CountMethod
 from supabase import create_client
@@ -7,7 +6,7 @@ class SupabaseVectorStore():
     def __init__(self):
         self.client = create_client(os.getenv("SUPABASE_URL",""), os.getenv("SUPABASE_SERVICE_ROLE_KEY",""))
 
-    async def add_vectors(self,data:list):
+    async def save_vectors(self,data:list):
         try:
             response = self.client.table("embeddings").upsert(data).execute()
 
@@ -55,7 +54,6 @@ class SupabaseVectorStore():
             }
     async def delete_embeddings_by_metadata_ids(self, metadata_ids: list[int]):
         try:
-            
             response = (
                 self.client
                 .table("embeddings")
