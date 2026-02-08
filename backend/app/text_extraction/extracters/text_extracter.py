@@ -6,34 +6,32 @@ class TextExtracter(BaseExtracter):
     
     def extract_text(self) -> list[str]:
         """
-        Reads the .txt file and returns a list of chunks, 
-        where each chunk is typically a paragraph.
+        Extract text from the TXT file, chunking by paragraph breaks (double newlines).
         """
+        text_stream = self.get_file_bytes_stream()
+        text=self.__get_text(text_stream)
+        
+        chunks = self.__create_chunks(text)
+        return chunks
+    
+    def __get_text(self,text_stream: io.BytesIO) -> str:
+        text_bytes = text_stream.read()
         try:
-            text_stream = self.get_file_from_storage()
-            text_bytes = text_stream.read()
-            
-            try:
-                full_text = text_bytes.decode('utf-8')
-            except UnicodeDecodeError:
-                
-                full_text = text_bytes.decode('latin-1') 
-
-            chunks = []
-            raw_paragraphs = full_text.split('\n\n')
-            
-            for paragraph in raw_paragraphs:
-                chunk = paragraph.strip()
-                if chunk: 
-                    chunks.append(chunk)
-
-            if not chunks:   
-                 if full_text.strip():
-                     chunks.append(full_text.strip())
-                 else:
-                     raise ValueError("The TXT file contains no readable content.")
-                
-            return chunks
-            
-        except Exception as e:
-            raise e
+            return text_bytes.decode('utf-8')
+        except UnicodeDecodeError:
+            return text_bytes.decode('latin-1')
+        
+    def __create_chunks(self,text: str) -> list[str]:
+        chunks = []
+        if not text.strip():
+            raise ValueError("The TXT file contains no readable content.")
+        
+        raw_paragraphs = text.split('\n\n')
+        for paragraph in raw_paragraphs:
+            chunk = paragraph.strip()
+            if chunk: 
+                chunks.append(chunk)
+        
+        return chunks
+        
+    

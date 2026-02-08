@@ -1,8 +1,6 @@
-
 from abc import ABC, abstractmethod
 import os
 import io
-
 from supabase import Client, create_client
 
 
@@ -16,15 +14,13 @@ class BaseExtracter(ABC):
         """Extract text from the file."""
         pass
     
-    def get_file_from_storage(self):
+    def get_file_bytes_stream(self):
         """Retrieve the file from storage."""
-        
-        supabase_client:Client=create_client(os.environ.get("SUPABASE_URL",""),os.environ.get("SUPABASE_SERVICE_ROLE_KEY",""))
-        
         try:
+            supabase_client:Client=create_client(os.environ.get("SUPABASE_URL",""),os.environ.get("SUPABASE_SERVICE_ROLE_KEY",""))
             file_data:bytes=supabase_client.storage.from_(os.environ.get("SUPABASE_BUCKET_KB","")).download(self.file_name)
         except Exception as e:
             raise FileNotFoundError(f"File {self.file_name} not found in storage.") from e
         
-        data_stream=io.BytesIO(file_data)
-        return data_stream
+        data_bytes=io.BytesIO(file_data)
+        return data_bytes
