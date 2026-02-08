@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select,func
+from app.convertors.chat_convertor_utils import ChatConvertorUtils
 from app.exceptions.Exceptions import DatabaseError, NotFoundError
 from app.models.chats import ChatsCreate, ChatsRead
 from app.models.messages import Messages, MessagesCreate, MessagesFromTypes
@@ -13,7 +14,8 @@ class ChatService:
         self.workflow_execution_service = workflow_execution_service
     
     async def get_all_chats(self,db:AsyncSession):
-        return await self.chat_repository.get_all_chats(db)
+        chats= await self.chat_repository.get_all_chats(db)
+        return ChatConvertorUtils.convert_chat_response_format(chats)
     
     async def get_chat(self,db:AsyncSession, chat_id:int):
         chat= await self.chat_repository.get_chat(db, chat_id)
@@ -26,7 +28,8 @@ class ChatService:
     async def create_chat(self,db:AsyncSession, chat_data:ChatsCreate):
         data= await self.chat_repository.save_chat(db, chat_data) 
         await db.commit()
-        return ChatsRead.model_validate(data)
+        chat=ChatsRead.model_validate(data)
+        return ChatConvertorUtils.convert_chat_response_format([chat])[0]
     
     async def get_messages(self, db: AsyncSession, chat_id: int, limit: int = 20, cursor: int | None = None):
         try:
@@ -50,12 +53,13 @@ class ChatService:
             
             has_more = len(messages) == limit
 
-            return {
+            messages_details= {
                 "messages": list(messages),
                 "next_cursor": messages[-1].id if messages else None,
                 "total_messages": total_message_count,
                 "has_more": has_more
             }
+            return ChatConvertorUtils.convert_messages_response_format(messages_details)
 
         except SQLAlchemyError as e:
             raise DatabaseError("Database error during fetch messages") from e
@@ -80,4 +84,6 @@ class ChatService:
         await db.commit()
         await db.refresh(messages[0])
         await db.refresh(messages[1])
-        return {"user_message": messages[0], "workflow_message": messages[1]}
+        user_message=ChatConvertorUtils.convert_message_response_format(messages[0])
+        workflow_message=ChatConvertorUtils.convert_message_response_format(messages[1])
+        return {"user_message":user_message,"workflow_message":workflow_message}

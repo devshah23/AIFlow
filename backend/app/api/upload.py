@@ -16,10 +16,6 @@ async def upload_kb_file(file: UploadFile):
         if result is None:
             raise Exception(error_message)
         
-        if result.get("success") is False:
-            error_message = result.get("error") or error_message
-            raise Exception(error_message)
-        
         return ApiResponse(success=True, 
                            data={"metadata_id": result.get("metadata_id"),
                                 "file_name": result.get("file_name"),

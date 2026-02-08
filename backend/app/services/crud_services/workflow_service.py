@@ -2,12 +2,13 @@ from fastapi import BackgroundTasks, Depends
 from pydantic import ValidationError
 from sqlalchemy import delete
 from app.convertors.edge_convertor import EdgeConvertor
+from app.convertors.utils import NodeConvertorUtils
 from app.embeddings.embedding_orchestrator import EmbeddingOrchestratorService
 from app.exceptions.Exceptions import DatabaseError, NotFoundError
 from app.models.apis.request import WorkflowUpdateRequest
 from app.models.file_metadata import FileMetadata
 from app.models.workflow_nodes import WorkflowNodes, WorkflowNodesCreate, WorkflowNodesTypes
-from app.models.workflows import Workflows, WorkflowsCreate, WorkflowsUpdate
+from app.models.workflows import Workflows, WorkflowsCreate, WorkflowsDetailsRead, WorkflowsRead, WorkflowsUpdate
 from app.repositories.workflow_edge_repository import WorkflowEdgeRepository
 from app.repositories.workflow_node_repository import WorkflowNodeRepository
 from app.repositories.workflow_repository import WorkflowRepository
@@ -89,7 +90,7 @@ class WorkflowService:
                     await self.workflow_edge_repo.create_many(db, edges)
 
             await db.refresh(workflow_obj,attribute_names=["nodes","edges"])
-            return workflow_obj
+            return await NodeConvertorUtils.convert_workflow_response_format(db,WorkflowsRead.model_validate(workflow_obj))
 
         except DatabaseError as e:
             raise DatabaseError("Failed to create workflow") from e
@@ -128,7 +129,6 @@ class WorkflowService:
         if old_metadata_ids:
             embed_service=EmbeddingOrchestratorService()
             rows=await embed_service.delete_embeddings_by_metadata_ids(old_metadata_ids)
-            print(rows)
             
             
         
@@ -184,7 +184,9 @@ class WorkflowService:
             await self.workflow_edge_repo.create_many(db, edges)
         await db.commit()
         await db.refresh(workflow_db_obj,attribute_names=["nodes","edges"])
-        return workflow_db_obj
+        return await NodeConvertorUtils.convert_workflow_response_format(
+                db, WorkflowsRead.model_validate(workflow_db_obj)
+        )
 
 
         
@@ -192,7 +194,7 @@ class WorkflowService:
     async def get_all(self,db:AsyncSession):
         try:
             workflows = await self.workflow_repo.get_all(db)
-            return workflows
+            return [WorkflowsDetailsRead.model_validate(wf) for wf in workflows]
         except DatabaseError as e:
             raise DatabaseError("Failed to get all workflows") from e
     
@@ -216,7 +218,7 @@ class WorkflowService:
             if not workflow:
                 raise NotFoundError(f"Workflow {workflow_id} not found")
             
-            return workflow
+            return await NodeConvertorUtils.convert_workflow_response_format(db,WorkflowsRead.model_validate(workflow))
 
         except DatabaseError as e:
             raise DatabaseError("Failed to get entire workflow") from e
