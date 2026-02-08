@@ -23,7 +23,7 @@ class LLMExecutor(NodeExecutor):
           )
           upstream_nodes_data = ExecutorUtil.get_data_from_upstream_with_node_types(context, upstream_nodes)
           prompt=self.build_prompt(self.node,upstream_nodes_data,org_query=context.get_output("input_query") or "");
-          output = await llm_provider.send_prompt(prompt)
+          output = await llm_provider.generate_content_by_prompt(prompt)
           
 
           return {

@@ -34,7 +34,7 @@ class KBFile:
             file_extension = self.file.filename.rsplit(".", 1)[-1]
         return f"{uuid.uuid4()}.{file_extension}"
 
-    async def get_file_bytes(self) -> bytes:
+    async def get_file_bytes_stream(self) -> bytes:
         file_bytes = await self.file.read()
         if not file_bytes:
             raise Exception("Uploaded file is empty or cannot be read.")
@@ -45,7 +45,7 @@ class KBFile:
 
 
 class SupabaseService:
-    FILE_BUCKET_NAME = "workflow_kb_files"
+    FILE_BUCKET_NAME = os.environ.get("SUPABASE_BUCKET_KB","")
     FILE_METADATA_TABLE = "file_metadata"
     def __init__(self):
             self.supabase = create_client(os.environ["SUPABASE_URL"],os.environ["SUPABASE_SERVICE_ROLE_KEY"]) 
@@ -96,7 +96,7 @@ async def upload_file(uploaded_file: UploadFile):
         
         file.validate_file()
         file_name = file.get_file_name()
-        file_bytes=await file.get_file_bytes()
+        file_bytes=await file.get_file_bytes_stream()
         
         supabase_instance=SupabaseService()
         uploaded_file_metadata = supabase_instance.process_file_upload(file_name, file_bytes, file.get_content_type())

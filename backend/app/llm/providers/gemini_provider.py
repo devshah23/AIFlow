@@ -17,32 +17,38 @@ class GeminiProvider(BaseProvider,LLMInteraction):
         client = genai.Client(api_key=self.api_key)
         return client
     
-    async def send_prompt(self, prompt: str, context: str = ""):
+    async def generate_content_by_prompt(self, prompt: str, context: str = ""):
         contents = []
         config = None
-        if context:
-            config = types.GenerateContentConfig(system_instruction=context,temperature=self.temperature)
         contents.append(prompt)
+        config = types.GenerateContentConfig(temperature=self.temperature)
+        if context:
+            config.system_instruction=context
+            
         response = await self.client.models.generate_content(
             model=self.model,
             contents=contents,
             config=config 
         )
+        
         return response.text or ""
 
-    async def send_chat(self,current_message:str, messages: list[dict], context: str="") -> str:
-        
+
+    def __create_chat_history(self, messages: list[dict]) -> list[types.ContentOrDict]:
         history: list[types.ContentOrDict] = []
         for message in messages:
-            # Convert Dict to the SDK's Content object format
             role = message.get("role", "user") 
             text = message.get("content", "")
             
             history.append(types.Content(role=role, parts=[types.Part(text=text)]))
+        return history
+    
+    async def generate_content_by_chat(self,current_message:str, messages: list[dict], context: str="") -> str:
+        history: list[types.ContentOrDict] = self.__create_chat_history(messages)
 
         config: types.GenerateContentConfig | None = types.GenerateContentConfig(temperature=self.temperature)
         if context:
-            config = types.GenerateContentConfig(system_instruction=context)
+            config.system_instruction = context
 
         chat_session = self.client.chats.create(
             model=self.model, 
@@ -51,7 +57,5 @@ class GeminiProvider(BaseProvider,LLMInteraction):
         )
         
         response = await chat_session.send_message(message=current_message)
-        
-        # NOTE: Add save chat_session.history here for persistence
         
         return response.text or ""

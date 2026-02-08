@@ -1,4 +1,3 @@
-
 from fastapi import Depends
 from app.dependencies.repositories import get_chat_repository, get_workflow_edge_repo, get_workflow_node_repo, get_workflow_repo
 from app.services.chat_service import ChatService
