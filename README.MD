@@ -27,7 +27,7 @@ AIFlow is a full-stack AI workflow automation platform that enables users to cre
 - **UI Components**: Radix UI
 - **Styling**: Tailwind CSS
 - **State Management**: Redux Toolkit
-- **Workflow Canvas**: XYFlow (React Flow)
+- **Workflow Canvas**: React Flow (@xyflow/react)
 - **Routing**: React Router v7
 - **Markdown Rendering**: React Markdown with LaTeX support
 
@@ -218,7 +218,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 📝 License
 
-This project is open source and available under the [MIT License](LICENSE).
+License information is to be determined.
 
 ## 🐛 Issues
 
