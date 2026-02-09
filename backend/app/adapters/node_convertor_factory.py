@@ -1,5 +1,5 @@
 from app.models.workflow_nodes import WorkflowNodesTypes
-from app.convertors.node_convertors import *
+from app.adapters.node_convertors import *
 
 
 class NodeConverterFactory:

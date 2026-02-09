@@ -1,7 +1,7 @@
 from typing import Any, Dict,List
 from pydantic import BaseModel, Field,field_validator
 
-from app.convertors.utils import NodeConvertorUtils
+from app.adapters.utils import NodeConvertorUtils
 
 
 class WorkflowUpdateRequest(BaseModel):

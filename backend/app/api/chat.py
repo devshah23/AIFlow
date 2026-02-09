@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.convertors.chat_convertor_utils import ChatConvertorUtils
+from app.adapters.chat_response_adapter import ChatResponseAdapter
 from app.dependencies.database import get_session
 from app.dependencies.services import get_chat_service
 from app.exceptions.Exceptions import NotFoundError, ValidationError
@@ -63,10 +63,10 @@ async def get_all_chats(db:AsyncSession=Depends(get_session),chat_service:chat_s
 async def get_chat(chat_id: int, db:AsyncSession=Depends(get_session),chat_service:chat_service.ChatService=Depends(get_chat_service)):
     try:
         data=await chat_service.get_chat(db,chat_id)
-        message_details=ChatConvertorUtils.convert_messages_response_format(data.get("message_details",[]))
+        message_details=ChatResponseAdapter.to_frontend_messages_with_pagination(data.get("message_details",[]))
         data["messageDetails"]=message_details
         data.pop("message_details",None)
-        chat=ChatConvertorUtils.convert_chat_response_format([data.get("chat",{})])[0]
+        chat=ChatResponseAdapter.to_frontend_chats([data.get("chat",{})])[0]
         data["chat"]=chat
         return ApiResponse(success=True,data=data)
     
@@ -113,7 +113,7 @@ async def get_messages(chat_id:int, limit:int=20, cursor:int|None=None, db:Async
 @router.post("/run/{chat_id}")
 async def send_message(chat_id: int,message=Body(..., embed=True), db:AsyncSession=Depends(get_session),chat_service:chat_service.ChatService=Depends(get_chat_service)):
     try:
-        response=await chat_service.execute_workflow(db,chat_id,message)
+        response=await chat_service.process_workflow_request(db,chat_id,message)
         data={"userMessage":response.get("user_message"),"workflowMessage":response.get("workflow_message")}
         return ApiResponse(success=True,data=data)
     

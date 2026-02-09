@@ -1,8 +1,8 @@
 from fastapi import BackgroundTasks, Depends
 from pydantic import ValidationError
 from sqlalchemy import delete
-from app.convertors.edge_convertor import EdgeConvertor
-from app.convertors.utils import NodeConvertorUtils
+from app.adapters.edge_adapter import EdgeAdapter
+from app.adapters.utils import NodeConvertorUtils
 from app.embeddings.embedding_orchestrator import EmbeddingOrchestratorService
 from app.exceptions.Exceptions import DatabaseError, NotFoundError
 from app.models.apis.request import WorkflowUpdateRequest
@@ -78,16 +78,14 @@ class WorkflowService:
                                                     fm.id,background_tasks)
                 await db.refresh(workflow_obj,attribute_names=["nodes","edges"])
                 if workflow_data.edges:
-                    edges=EdgeConvertor.convert_to_edge_format( [
+                    # Now workflow id should be available 
+                    assert workflow_obj.id is not None
+                    
+                    edges=EdgeAdapter.build_edges( [
                         {"id": x.id, "frontend_id": x.config.get("frontend_id")}for x in nodes_in_db
-                        ],workflow_data.edges)
+                        ],workflow_data.edges,workflow_obj.id)
                     
-                    edges=[
-                        e.model_copy(update={"workflow_id": workflow_obj.id}).model_dump()
-                        for e in edges
-                    ]
-                    
-                    await self.workflow_edge_repo.create_many(db, edges)
+                    await self.workflow_edge_repo.create_many(db, [e.model_dump() for e in edges])
 
             await db.refresh(workflow_obj,attribute_names=["nodes","edges"])
             return await NodeConvertorUtils.convert_workflow_response_format(db,WorkflowsRead.model_validate(workflow_obj))
@@ -167,21 +165,15 @@ class WorkflowService:
                                             fm.id,background_tasks)
         await db.refresh(workflow_db_obj,attribute_names=["nodes","edges"])
         if req.edges:
-            
-            modified_edges=[
+            edges_raw_data=[
                 {"id": x.get("id"), "source": str(x.get("source", "")).replace("new",""), "target": str(x.get("target", "")).replace("new","")}for x in req.edges
                 ]
-            # remove new from frontend ids
-            edges=EdgeConvertor.convert_to_edge_format( [
+            
+            edges=EdgeAdapter.build_edges( [
                 {"id": x.id, "frontend_id": str(x.config.get("frontend_id", "")).replace("new","")}for x in workflow_db_obj.nodes
-                ],modified_edges)
+                ],edges_raw_data,workflow_db_obj.id)
             
-            edges=[
-                e.model_copy(update={"workflow_id": workflow_db_obj.id}).model_dump()
-                for e in edges
-            ]
-            
-            await self.workflow_edge_repo.create_many(db, edges)
+            await self.workflow_edge_repo.create_many(db, [e.model_dump() for e in edges])
         await db.commit()
         await db.refresh(workflow_db_obj,attribute_names=["nodes","edges"])
         return await NodeConvertorUtils.convert_workflow_response_format(

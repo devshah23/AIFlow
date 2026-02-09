@@ -1,4 +1,4 @@
-from app.convertors.node_convertor_base import NodeConverter
+from app.adapters.node_convertor_base import NodeConverter
 from app.models.workflow_nodes import WorkflowNodesBase, WorkflowNodesCreate, WorkflowNodesTypes, WorkflowNodesUpdate
 
 

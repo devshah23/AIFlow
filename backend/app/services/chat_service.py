@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select,func
-from app.convertors.chat_convertor_utils import ChatConvertorUtils
+from app.adapters.chat_response_adapter import ChatResponseAdapter
 from app.exceptions.Exceptions import DatabaseError, NotFoundError
 from app.models.chats import ChatsCreate, ChatsRead
 from app.models.messages import Messages, MessagesCreate, MessagesFromTypes
@@ -15,7 +15,7 @@ class ChatService:
     
     async def get_all_chats(self,db:AsyncSession):
         chats= await self.chat_repository.get_all_chats(db)
-        return ChatConvertorUtils.convert_chat_response_format(chats)
+        return ChatResponseAdapter.to_frontend_chats(chats)
     
     async def get_chat(self,db:AsyncSession, chat_id:int):
         chat= await self.chat_repository.get_chat(db, chat_id)
@@ -28,38 +28,18 @@ class ChatService:
     async def create_chat(self,db:AsyncSession, chat_data:ChatsCreate):
         data= await self.chat_repository.save_chat(db, chat_data) 
         await db.commit()
-        chat=ChatsRead.model_validate(data)
-        return ChatConvertorUtils.convert_chat_response_format([chat])[0]
+        return ChatResponseAdapter.to_frontend_chats([ChatsRead.model_validate(data)])[0]
     
     async def get_messages(self, db: AsyncSession, chat_id: int, limit: int = 20, cursor: int | None = None):
         try:
-            query = (
-                select(Messages)
-                .where(Messages.chat_id == chat_id)
-                .order_by(Messages.id.desc())
-                .limit(limit)
+            messages = await self.__fetch_messages(db, chat_id, limit, cursor)
+            total = await self.__count_messages_for_chat(db, chat_id)
+            
+            return self.__build_paginated_response_of_messages(
+                messages=messages,
+                total=total,
+                limit=limit
             )
-            
-            if cursor:
-                query = query.where(Messages.id < cursor)
-
-            result = await db.execute(query)
-            messages = result.scalars().all()
-
-            
-            count_stmt = select(func.count(Messages.id)).where(Messages.chat_id == chat_id)
-            count_result = await db.execute(count_stmt)
-            total_message_count = count_result.scalar() or 0
-            
-            has_more = len(messages) == limit
-
-            messages_details= {
-                "messages": list(messages),
-                "next_cursor": messages[-1].id if messages else None,
-                "total_messages": total_message_count,
-                "has_more": has_more
-            }
-            return ChatConvertorUtils.convert_messages_response_format(messages_details)
 
         except SQLAlchemyError as e:
             raise DatabaseError("Database error during fetch messages") from e
@@ -69,21 +49,86 @@ class ChatService:
         await db.commit()
         return data
     
-    async def execute_workflow(self,db:AsyncSession,chat_id:int, message:str):
+    async def process_workflow_request(self,db:AsyncSession,chat_id:int, message:str):
         chat= await self.chat_repository.get_chat(db, chat_id)
         if not chat:
             raise NotFoundError(f"Chat with id {chat_id} not found")
-        workflow_id=chat.workflow_id
-        execution_result= await self.workflow_execution_service.run(db, workflow_id, message)
-        user_message=MessagesCreate(chat_id=chat_id, from_entity=MessagesFromTypes.USER, content=message)
-        workflow_output_msg=MessagesCreate(chat_id=chat_id, from_entity=MessagesFromTypes.WORKFLOW, content=execution_result.get("output",""))
-        messages_to_save=[user_message,workflow_output_msg]
-
-
-        messages=await self.chat_repository.save_messages(db, messages_to_save)
-        await db.commit()
-        await db.refresh(messages[0])
-        await db.refresh(messages[1])
-        user_message=ChatConvertorUtils.convert_message_response_format(messages[0])
-        workflow_message=ChatConvertorUtils.convert_message_response_format(messages[1])
+        
+        execution_result= await self.__run_workflow(db, chat.workflow_id, message)
+        
+        messages = await self.__persist_messages_of_execution_request(db, chat_id, message, execution_result)
+        
+        user_message=ChatResponseAdapter.to_frontend_message(messages[0])
+        workflow_message=ChatResponseAdapter.to_frontend_message(messages[1])
         return {"user_message":user_message,"workflow_message":workflow_message}
+    
+    # --------------------------------------------
+    # HELPER METHODS
+    # --------------------------------------------
+    
+    async def __fetch_messages(
+    self,
+    db: AsyncSession,
+    chat_id: int,
+    limit: int,
+    cursor: int | None,
+) -> list[Messages]:
+        stmt = (
+            select(Messages)
+            .where(Messages.chat_id == chat_id)
+            .order_by(Messages.id.desc())
+            .limit(limit))
+
+        if cursor is not None:
+            stmt = stmt.where(Messages.id < cursor)
+
+        result = await db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def __count_messages_for_chat(
+    self,
+    db: AsyncSession,
+    chat_id: int,
+    ) -> int:
+        stmt = select(func.count(Messages.id)).where(Messages.chat_id == chat_id)
+        result = await db.execute(stmt)
+        return result.scalar() or 0
+    
+    def __build_paginated_response_of_messages(
+    self,
+    messages: list[Messages],
+    total: int,
+    limit: int,
+    ):
+        return ChatResponseAdapter.to_frontend_messages_with_pagination({
+            "messages": messages,
+            "next_cursor": messages[-1].id if messages else None,
+            "total_messages": total,
+            "has_more": len(messages) == limit,
+        })
+
+    async def __run_workflow(self,db:AsyncSession, workflow_id:int, message:str):
+        execution_output= await self.workflow_execution_service.run(db, workflow_id, message)
+        return execution_output.get("output","")
+    
+    async def __persist_messages_of_execution_request(self,db: AsyncSession,chat_id: int,user_message: str,workflow_output: str):
+        messages = [
+            MessagesCreate(
+                chat_id=chat_id,
+                from_entity=MessagesFromTypes.USER,
+                content=user_message
+            ),
+            MessagesCreate(
+                chat_id=chat_id,
+                from_entity=MessagesFromTypes.WORKFLOW,
+                content=workflow_output
+            ),
+        ]
+
+        saved = await self.chat_repository.save_messages(db, messages)
+        await db.commit()
+
+        for msg in saved:
+            await db.refresh(msg)
+
+        return saved

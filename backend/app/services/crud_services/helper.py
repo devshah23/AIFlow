@@ -1,4 +1,4 @@
-from app.convertors.utils import NodeConvertorUtils
+from app.adapters.utils import NodeConvertorUtils
 
 
 def split_nodes( nodes: list[dict], workflow_id: int):

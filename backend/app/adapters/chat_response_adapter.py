@@ -1,11 +1,10 @@
-
-from app.models.chats import Chats, ChatsRead
+from app.models.chats import ChatsRead
 from app.models.messages import Messages
 
 
-class ChatConvertorUtils:
+class ChatResponseAdapter:
     @staticmethod
-    def convert_chat_response_format(chat: list[ChatsRead]) -> list[dict]:
+    def to_frontend_chats(chat: list[ChatsRead]) -> list[dict]:
         converted_chats = []
         for c in chat:
             chat_dict = c.model_dump()
@@ -18,10 +17,10 @@ class ChatConvertorUtils:
         return converted_chats
     
     @staticmethod
-    def convert_messages_response_format(message_details)->dict:
+    def to_frontend_messages_with_pagination(message_details)->dict:
         converted_messages=[]
         for m in message_details.get("messages",[]):
-            msg_dict=ChatConvertorUtils.convert_message_response_format(m)
+            msg_dict=ChatResponseAdapter.to_frontend_message(m)
             converted_messages.append(msg_dict)
         converted_messages.sort(key=lambda x: x["id"])
         message_details["messages"]=converted_messages
@@ -33,7 +32,7 @@ class ChatConvertorUtils:
         return message_details
     
     @staticmethod
-    def convert_message_response_format(message: Messages) -> dict:
+    def to_frontend_message(message: Messages) -> dict:
         msg_dict={}
         msg_dict=message.model_dump()
         msg_dict["id"]=msg_dict["id"]
